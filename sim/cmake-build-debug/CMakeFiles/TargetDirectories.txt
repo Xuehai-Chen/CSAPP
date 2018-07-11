@@ -1,3 +1,0 @@
-/Users/chenxuehai/Documents/GitHub/CSAPP/sim/cmake-build-debug/CMakeFiles/rebuild_cache.dir
-/Users/chenxuehai/Documents/GitHub/CSAPP/sim/cmake-build-debug/CMakeFiles/edit_cache.dir
-/Users/chenxuehai/Documents/GitHub/CSAPP/sim/cmake-build-debug/CMakeFiles/sim.dir

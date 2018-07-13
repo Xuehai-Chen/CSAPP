@@ -13,7 +13,6 @@ add_executable(sim
         misc/hcl.y
         misc/isa.c
         misc/isa.h
-        misc/isa.o
         misc/Makefile
         misc/mux4.hcl
         misc/node.c
@@ -21,15 +20,10 @@ add_executable(sim
         misc/outgen.c
         misc/outgen.h
         misc/README
-        misc/yas-grammar.c
         misc/yas-grammar.lex
-        misc/yas-grammar.o
         misc/yas.c
         misc/yas.h
-        misc/yas.o
-        misc/yis
         misc/yis.c
-        misc/yis.o
         pipe/benchmark.pl
         pipe/check-len.pl
         pipe/correctness.pl

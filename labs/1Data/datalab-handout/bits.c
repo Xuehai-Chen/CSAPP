@@ -139,7 +139,7 @@ NOTES:
  *   Rating: 1
  */
 int bitAnd(int x, int y) {
-  return 2;
+  return ~(~x | ~y);
 }
 /* 
  * getByte - Extract byte n from word x
@@ -150,17 +150,9 @@ int bitAnd(int x, int y) {
  *   Rating: 2
  */
 int getByte(int x, int n) {
-
-
-
-
-
-
-
-  return 2;
-
+  return (x >> (n << 3))&0xff;
 }
-/* 
+/*
  * logicalShift - shift x to the right by n, using a logical shift
  *   Can assume that 0 <= n <= 31
  *   Examples: logicalShift(0x87654321,4) = 0x08765432
@@ -169,7 +161,15 @@ int getByte(int x, int n) {
  *   Rating: 3 
  */
 int logicalShift(int x, int n) {
-  return 2;
+	//printf("the x is %d, n is %d \n",x,n);
+	int completeN = (~n+1)+0x20;
+	int is32 = completeN >> 5;
+	int extractor = (0x1 & ~is32) << completeN;
+	int arithmeticShift = x >> n;
+	int sign = extractor & arithmeticShift;
+	int result = arithmeticShift + sign;
+	//printf("the completeN is %d, extractor is %d. sign is %d, arithmeticShift is %d,result is %d \n",completeN,extractor,sign,arithmeticShift,result);
+  return result; 
 }
 /*
  * bitCount - returns count of number of 1's in word
@@ -179,7 +179,17 @@ int logicalShift(int x, int n) {
  *   Rating: 4
  */
 int bitCount(int x) {
-  return 2;
+	int all5 = 0x55 + (0x55 << 8) + (0x55 << 16) + (0x55 << 24);
+	int all3 = 0x33 + (0x33 << 8) + (0x33 << 16) + (0x33 << 24);
+	int all0f = 0x0F + (0x0F << 8) + (0x0F << 16) + (0x0F << 24);
+	int all00ff = 0xFF + (0xFF << 16);
+	int ffff = 0xFF + (0xFF << 8);
+	x = (x & all5) + ((x >> 1) & all5);
+	x = (x & all3) + ((x >> 2) & all3);
+	x = (x & all0f) + ((x >> 4) & all0f);
+	x = (x & all00ff) + ((x >> 8) & all00ff);
+	x = (x & ffff) + ((x >> 16) & ffff);
+  return x;
 }
 /* 
  * bang - Compute !x without using !
@@ -189,7 +199,12 @@ int bitCount(int x) {
  *   Rating: 4 
  */
 int bang(int x) {
-  return 2;
+	x = (x >> 16) | x;
+	x = (x >> 8) | x;
+	x = (x >> 4) | x;
+	x = (x >> 2) | x;
+	x = (x >> 1) | x;
+  return (~x & 0x1);
 }
 /* 
  * tmin - return minimum two's complement integer 
@@ -198,7 +213,7 @@ int bang(int x) {
  *   Rating: 1
  */
 int tmin(void) {
-  return 2;
+  return (0x1 << 0x1F);
 }
 /* 
  * fitsBits - return 1 if x can be represented as an 

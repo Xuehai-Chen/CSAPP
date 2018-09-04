@@ -13,6 +13,8 @@
  * case it's OK.  
  */
 
+#include <printf.h>
+
 #if 0
 /*
  * Instructions to Students:
@@ -131,7 +133,26 @@ NOTES:
 
 
 #endif
-/* 
+
+int logicalShift(int x, int n);
+
+void printBit(int x) {
+
+  int i;
+  unsigned int bit = 0x80000000;
+  for (i = 0; i < sizeof(int) * 8; i++) {
+    if (x & bit) {
+      printf("1");
+    } else {
+      printf("0");
+    }
+    bit = bit >> 1;
+    //printf("this%d \n", bit);
+  }
+  printf("  ");
+}
+
+/*
  * bitAnd - x&y using only ~ and | 
  *   Example: bitAnd(6, 5) = 4
  *   Legal ops: ~ |
@@ -141,7 +162,8 @@ NOTES:
 int bitAnd(int x, int y) {
   return ~(~x | ~y);
 }
-/* 
+
+/*
  * getByte - Extract byte n from word x
  *   Bytes numbered from 0 (LSB) to 3 (MSB)
  *   Examples: getByte(0x12345678,1) = 0x56
@@ -150,8 +172,9 @@ int bitAnd(int x, int y) {
  *   Rating: 2
  */
 int getByte(int x, int n) {
-  return (x >> (n << 3))&0xff;
+  return (x >> (n << 3)) & 0xff;
 }
+
 /*
  * logicalShift - shift x to the right by n, using a logical shift
  *   Can assume that 0 <= n <= 31
@@ -161,16 +184,17 @@ int getByte(int x, int n) {
  *   Rating: 3 
  */
 int logicalShift(int x, int n) {
-	//printf("the x is %d, n is %d \n",x,n);
-	int completeN = (~n+1)+0x20;
-	int is32 = completeN >> 5;
-	int extractor = (0x1 & ~is32) << completeN;
-	int arithmeticShift = x >> n;
-	int sign = extractor & arithmeticShift;
-	int result = arithmeticShift + sign;
-	//printf("the completeN is %d, extractor is %d. sign is %d, arithmeticShift is %d,result is %d \n",completeN,extractor,sign,arithmeticShift,result);
-  return result; 
+  //printf("the x is %d, n is %d \n",x,n);
+  int completeN = (~n + 1) + 0x20;
+  int is32 = completeN >> 5;
+  int extractor = (0x1 & ~is32) << completeN;
+  int arithmeticShift = x >> n;
+  int sign = extractor & arithmeticShift;
+  int result = arithmeticShift + sign;
+  //printf("the completeN is %d, extractor is %d. sign is %d, arithmeticShift is %d,result is %d \n",completeN,extractor,sign,arithmeticShift,result);
+  return result;
 }
+
 /*
  * bitCount - returns count of number of 1's in word
  *   Examples: bitCount(5) = 2, bitCount(7) = 3
@@ -179,19 +203,47 @@ int logicalShift(int x, int n) {
  *   Rating: 4
  */
 int bitCount(int x) {
-	int all5 = 0x55 + (0x55 << 8) + (0x55 << 16) + (0x55 << 24);
-	int all3 = 0x33 + (0x33 << 8) + (0x33 << 16) + (0x33 << 24);
-	int all0f = 0x0F + (0x0F << 8) + (0x0F << 16) + (0x0F << 24);
-	int all00ff = 0xFF + (0xFF << 16);
-	int ffff = 0xFF + (0xFF << 8);
-	x = (x & all5) + ((x >> 1) & all5);
-	x = (x & all3) + ((x >> 2) & all3);
-	x = (x & all0f) + ((x >> 4) & all0f);
-	x = (x & all00ff) + ((x >> 8) & all00ff);
-	x = (x & ffff) + ((x >> 16) & ffff);
-  return x;
+  x = -1;
+  printf("the x is %d ,", x);
+  int all5 = 0x55 + (0x55 << 8) + (0x55 << 16) + (0x55 << 24);
+  int all3 = 0x33 + (0x33 << 8) + (0x33 << 16) + (0x33 << 24);
+  int all0f = 0x0F + (0x0F << 8) + (0x0F << 16) + (0x0F << 24);
+  int all00ff = 0xFF + (0xFF << 16);
+  int ffff = 0xFF + (0xFF << 8);
+  //printf("%d \n",sizeof(int) * 8);
+  printBit(x);
+  int x1 = (x & all5) + ((x >> 1) & all5);
+  printf("x1:");
+  printBit(x1);
+
+  int firstPart = x & all3;
+  int secondPart = x >> 2;
+  printf("x>>2:");
+  printBit(secondPart);
+  printf("realx>>2D:%d,rightX>>2D:%d ", secondPart, 0b00101010101010101010101010101010);
+  printf("\nright:");
+  printBit(0b00101010101010101010101010101010 & 0b00110011001100110011001100110011);
+  printf("real:");
+  printBit((secondPart & 0b00110011001100110011001100110011));
+
+  printBit(all3);
+  int x2 = (x1 & all3) + ((x1 >> 2) & all3);
+  printf("x2:");
+  printBit(x2);
+  int x4 = (x2 & all0f) + ((x2 >> 4) & all0f);
+  printf("x4:");
+  printBit(x4);
+  int x8 = (x4 & all00ff) + ((x4 >> 8) & all00ff);
+  printf("x8:");
+  printBit(x8);
+  int x16 = (x8 & ffff) + ((x8 >> 16) & ffff);
+  printf("x16:");
+  printBit(x16);
+  printf("\n");
+  return x16;
 }
-/* 
+
+/*
  * bang - Compute !x without using !
  *   Examples: bang(3) = 0, bang(0) = 1
  *   Legal ops: ~ & ^ | + << >>
@@ -199,14 +251,15 @@ int bitCount(int x) {
  *   Rating: 4 
  */
 int bang(int x) {
-	x = (x >> 16) | x;
-	x = (x >> 8) | x;
-	x = (x >> 4) | x;
-	x = (x >> 2) | x;
-	x = (x >> 1) | x;
+  x = (x >> 16) | x;
+  x = (x >> 8) | x;
+  x = (x >> 4) | x;
+  x = (x >> 2) | x;
+  x = (x >> 1) | x;
   return (~x & 0x1);
 }
-/* 
+
+/*
  * tmin - return minimum two's complement integer 
  *   Legal ops: ! ~ & ^ | + << >>
  *   Max ops: 4
@@ -215,7 +268,8 @@ int bang(int x) {
 int tmin(void) {
   return (0x1 << 0x1F);
 }
-/* 
+
+/*
  * fitsBits - return 1 if x can be represented as an 
  *  n-bit, two's complement integer.
  *   1 <= n <= 32
@@ -227,7 +281,8 @@ int tmin(void) {
 int fitsBits(int x, int n) {
   return 2;
 }
-/* 
+
+/*
  * divpwr2 - Compute x/(2^n), for 0 <= n <= 30
  *  Round toward zero
  *   Examples: divpwr2(15,1) = 7, divpwr2(-33,4) = -2
@@ -236,9 +291,10 @@ int fitsBits(int x, int n) {
  *   Rating: 2
  */
 int divpwr2(int x, int n) {
-    return 2;
+  return 2;
 }
-/* 
+
+/*
  * negate - return -x 
  *   Example: negate(1) = -1.
  *   Legal ops: ! ~ & ^ | + << >>
@@ -248,7 +304,8 @@ int divpwr2(int x, int n) {
 int negate(int x) {
   return 2;
 }
-/* 
+
+/*
  * isPositive - return 1 if x > 0, return 0 otherwise 
  *   Example: isPositive(-1) = 0.
  *   Legal ops: ! ~ & ^ | + << >>
@@ -258,7 +315,8 @@ int negate(int x) {
 int isPositive(int x) {
   return 2;
 }
-/* 
+
+/*
  * isLessOrEqual - if x <= y  then return 1, else return 0 
  *   Example: isLessOrEqual(4,5) = 1.
  *   Legal ops: ! ~ & ^ | + << >>
@@ -268,6 +326,7 @@ int isPositive(int x) {
 int isLessOrEqual(int x, int y) {
   return 2;
 }
+
 /*
  * ilog2 - return floor(log base 2 of x), where x > 0
  *   Example: ilog2(16) = 4
@@ -278,7 +337,8 @@ int isLessOrEqual(int x, int y) {
 int ilog2(int x) {
   return 2;
 }
-/* 
+
+/*
  * float_neg - Return bit-level equivalent of expression -f for
  *   floating point argument f.
  *   Both the argument and result are passed as unsigned int's, but
@@ -290,9 +350,10 @@ int ilog2(int x) {
  *   Rating: 2
  */
 unsigned float_neg(unsigned uf) {
- return 2;
+  return 2;
 }
-/* 
+
+/*
  * float_i2f - Return bit-level equivalent of expression (float) x
  *   Result is returned as unsigned int, but
  *   it is to be interpreted as the bit-level representation of a
@@ -304,7 +365,8 @@ unsigned float_neg(unsigned uf) {
 unsigned float_i2f(int x) {
   return 2;
 }
-/* 
+
+/*
  * float_twice - Return bit-level equivalent of expression 2*f for
  *   floating point argument f.
  *   Both the argument and result are passed as unsigned int's, but

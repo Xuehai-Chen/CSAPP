@@ -147,7 +147,6 @@ void printBit(int x) {
       printf("0");
     }
     bit = bit >> 1;
-    //printf("this%d \n", bit);
   }
   printf("  ");
 }
@@ -172,7 +171,7 @@ int bitAnd(int x, int y) {
  *   Rating: 2
  */
 int getByte(int x, int n) {
-  return (x >> (n << 3)) & 0xff;
+  return (x >> (n << 3)) & 0xFF;
 }
 
 /*
@@ -203,44 +202,17 @@ int logicalShift(int x, int n) {
  *   Rating: 4
  */
 int bitCount(int x) {
-  x = -1;
-  printf("the x is %d ,", x);
   int all5 = 0x55 + (0x55 << 8) + (0x55 << 16) + (0x55 << 24);
   int all3 = 0x33 + (0x33 << 8) + (0x33 << 16) + (0x33 << 24);
   int all0f = 0x0F + (0x0F << 8) + (0x0F << 16) + (0x0F << 24);
   int all00ff = 0xFF + (0xFF << 16);
   int ffff = 0xFF + (0xFF << 8);
-  //printf("%d \n",sizeof(int) * 8);
-  printBit(x);
-  int x1 = (x & all5) + ((x >> 1) & all5);
-  printf("x1:");
-  printBit(x1);
-
-  int firstPart = x & all3;
-  int secondPart = x >> 2;
-  printf("x>>2:");
-  printBit(secondPart);
-  printf("realx>>2D:%d,rightX>>2D:%d ", secondPart, 0b00101010101010101010101010101010);
-  printf("\nright:");
-  printBit(0b00101010101010101010101010101010 & 0b00110011001100110011001100110011);
-  printf("real:");
-  printBit((secondPart & 0b00110011001100110011001100110011));
-
-  printBit(all3);
-  int x2 = (x1 & all3) + ((x1 >> 2) & all3);
-  printf("x2:");
-  printBit(x2);
-  int x4 = (x2 & all0f) + ((x2 >> 4) & all0f);
-  printf("x4:");
-  printBit(x4);
-  int x8 = (x4 & all00ff) + ((x4 >> 8) & all00ff);
-  printf("x8:");
-  printBit(x8);
-  int x16 = (x8 & ffff) + ((x8 >> 16) & ffff);
-  printf("x16:");
-  printBit(x16);
-  printf("\n");
-  return x16;
+  x = (x & all5) + ((x >> 1) & all5);
+  x = (x & all3) + ((x >> 2) & all3);
+  x = (x & all0f) + ((x >> 4) & all0f);
+  x = (x & all00ff) + ((x >> 8) & all00ff);
+  x = (x & ffff) + ((x >> 16) & ffff);
+  return x;
 }
 
 /*
@@ -279,7 +251,10 @@ int tmin(void) {
  *   Rating: 2
  */
 int fitsBits(int x, int n) {
-  return 2;
+  int completeN = 33 + ~n;
+  int maskX = (x << completeN) >> completeN;
+  int result = !(maskX ^ x);
+  return result;
 }
 
 /*
@@ -291,7 +266,11 @@ int fitsBits(int x, int n) {
  *   Rating: 2
  */
 int divpwr2(int x, int n) {
-  return 2;
+  int sign = (x >> 31) & 0x1;
+  int shift = x >> n;
+  int remainder = ~(!((shift << n) ^ x));
+  int result = shift + (sign & remainder);
+  return result;
 }
 
 /*
@@ -302,7 +281,7 @@ int divpwr2(int x, int n) {
  *   Rating: 2
  */
 int negate(int x) {
-  return 2;
+  return (~x + 1);
 }
 
 /*
@@ -313,7 +292,7 @@ int negate(int x) {
  *   Rating: 3
  */
 int isPositive(int x) {
-  return 2;
+  return (~((x >> 31) | !x)) & 0x1;
 }
 
 /*
@@ -324,7 +303,12 @@ int isPositive(int x) {
  *   Rating: 3
  */
 int isLessOrEqual(int x, int y) {
-  return 2;
+  int a = ~(~x & y) >> 31;
+  int b = (x & ~y) >> 31;
+  int negativeX = ~x + 1;
+  int sub = y + negativeX;
+  int result = ((~(sub >> 31)) & a | b) & 0x1;
+  return result;
 }
 
 /*
@@ -335,7 +319,23 @@ int isLessOrEqual(int x, int y) {
  *   Rating: 4
  */
 int ilog2(int x) {
-  return 2;
+  int tmp = x >> 16;
+  int flg1 = (~!tmp << 31) >> 31;
+  x = (flg1 & tmp) | (~flg1 & x);
+  tmp = x >> 8;
+  int flg2 = (~!tmp << 31) >> 31;
+  x = (flg2 & tmp) | (~flg2 & x);
+  tmp = x >> 4;
+  int flg3 = (~!tmp << 31) >> 31;
+  x = (flg3 & tmp) | (~flg3 & x);
+  tmp = x >> 2;
+  int flg4 = (~!tmp << 31) >> 31;
+  x = (flg4 & tmp) | (~flg4 & x);
+  tmp = x >> 1;
+  int flg5 = (~!tmp << 31) >> 31;
+  x = (flg5 & tmp) | (~flg5 & x);
+  int result = ((0x1 & flg5) + (0x2 & flg4) + (0x4 & flg3) + (0x8 & flg2) + (0x10 & flg1));
+  return result;
 }
 
 /*
@@ -350,7 +350,14 @@ int ilog2(int x) {
  *   Rating: 2
  */
 unsigned float_neg(unsigned uf) {
-  return 2;
+  int sign = (uf & 0x7FC00000) ^0x7FC00000;
+  unsigned result;
+  if (!sign) {
+    result = uf;
+  } else {
+    result = (~uf & 0x80000000) + (uf & 0x7FFFFFFF);
+  }
+  return result;
 }
 
 /*
@@ -363,7 +370,40 @@ unsigned float_neg(unsigned uf) {
  *   Rating: 4
  */
 unsigned float_i2f(int x) {
-  return 2;
+  int sign = x & 0x80000000;
+  int negative;
+  if (sign) {
+    negative = -1;
+  } else {
+    negative = 0;
+  }
+  unsigned absolute = ((~x + 1) & negative) | (~negative & x);
+  unsigned tmp = absolute;
+  int n = -1;
+  while (tmp) {
+    n += 1;
+    tmp = tmp >> 1;
+  }
+  unsigned frac;
+  int nOverFlow = n - 23;
+  if (nOverFlow > 0) {
+    frac = (absolute >> nOverFlow) & 0x007FFFFF;
+    int shiftBits = 55 - n;
+    unsigned shiftAbsolute = absolute << shiftBits;
+    if ((shiftAbsolute & 0x80000000) && ((frac & 0x1) || (shiftAbsolute & 0x7FFFFFFF))) {
+      frac = frac + 1;
+    }
+  } else {
+    frac = (absolute << -nOverFlow) & 0x007FFFFF;
+  }
+  unsigned exp;
+  if (!x) {
+    exp = 0;
+  } else {
+    exp = (n + 127) << 23;
+  }
+  unsigned result = sign + exp + frac;
+  return result;
 }
 
 /*

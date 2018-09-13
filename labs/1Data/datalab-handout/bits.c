@@ -418,5 +418,14 @@ unsigned float_i2f(int x) {
  *   Rating: 4
  */
 unsigned float_twice(unsigned uf) {
-  return 2;
+  int sign = (uf & 0x7F800000) ^0x7F800000;
+  unsigned result;
+  if (!sign || !(uf & 0x7FFFFFFF)) {
+    result = uf;
+  } else if (!(uf & 0x7F800000)) {
+    result = (uf & 0x80000000) + (uf << 1);
+  } else {
+    result = uf + (0x1 << 23);
+  }
+  return result;
 }

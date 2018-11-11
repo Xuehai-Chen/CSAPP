@@ -10,10 +10,10 @@
  * Please fill in the following team struct 
  */
 team_t team = {
-    "bovik",              /* Team name */
+    "whatever",              /* Team name */
 
-    "Harry Q. Bovik",     /* First member full name */
-    "bovik@nowhere.edu",  /* First member email address */
+    "me",     /* First member full name */
+    "my-email",  /* First member email address */
 
     "",                   /* Second member full name (leave blank if none) */
     ""                    /* Second member email addr (leave blank if none) */
@@ -36,8 +36,8 @@ void naive_rotate(int dim, pixel *src, pixel *dst)
     int i, j;
 
     for (i = 0; i < dim; i++)
-	for (j = 0; j < dim; j++)
-	    dst[RIDX(dim-1-j, i, dim)] = src[RIDX(i, j, dim)];
+			for (j = 0; j < dim; j++)
+				dst[RIDX(dim-1-j, i, dim)] = src[RIDX(i, j, dim)];
 }
 
 /* 
@@ -47,7 +47,21 @@ void naive_rotate(int dim, pixel *src, pixel *dst)
 char rotate_descr[] = "rotate: Current working version";
 void rotate(int dim, pixel *src, pixel *dst) 
 {
-    naive_rotate(dim, src, dst);
+	// the general idea is, access to memory is time consuming, use blocking strategy to optimize it.
+  int i, j;
+	int ii = 0;
+	int jj = 0;
+	for(ii = 0; ii < dim; ii+=8){
+		for(jj = 0; jj < dim; jj+=8){
+			int iinext = ii + 8;
+			int jjnext = jj + 8;
+			for (i = ii; i < iinext; i++){
+				for (j = jj; j < jjnext; j++){
+					dst[RIDX(dim-1-j,i,dim)] = src[RIDX(i,j,dim)];
+				}
+			}
+		}
+	}
 }
 
 /*********************************************************************
@@ -131,11 +145,10 @@ static pixel avg(int dim, int i, int j, pixel *src)
     pixel current_pixel;
 
     initialize_pixel_sum(&sum);
-    for(ii = max(i-1, 0); ii <= min(i+1, dim-1); ii++) 
-	for(jj = max(j-1, 0); jj <= min(j+1, dim-1); jj++) 
-	    accumulate_sum(&sum, src[RIDX(ii, jj, dim)]);
-
-    assign_sum_to_pixel(&current_pixel, sum);
+    for(ii = max(i-1, 0); ii <= min(i+1, dim-1); ii++)
+			for(jj = max(j-1, 0); jj <= min(j+1, dim-1); jj++)
+				accumulate_sum(&sum, src[RIDX(ii, jj, dim)]);
+		assign_sum_to_pixel(&current_pixel, sum);
     return current_pixel;
 }
 
@@ -152,8 +165,8 @@ void naive_smooth(int dim, pixel *src, pixel *dst)
     int i, j;
 
     for (i = 0; i < dim; i++)
-	for (j = 0; j < dim; j++)
-	    dst[RIDX(i, j, dim)] = avg(dim, i, j, src);
+			for (j = 0; j < dim; j++)
+				dst[RIDX(i, j, dim)] = avg(dim, i, j, src);
 }
 
 /*
@@ -163,7 +176,69 @@ void naive_smooth(int dim, pixel *src, pixel *dst)
 char smooth_descr[] = "smooth: Current working version";
 void smooth(int dim, pixel *src, pixel *dst) 
 {
-    naive_smooth(dim, src, dst);
+		// the general idea is to eliminate misprediction penalties
+    int i, j;
+		pixel current;
+		i = 0;
+		j = 0;
+		current.red = (unsigned short) ((src[RIDX(i,j,dim)].red + src[RIDX(i,j+1,dim)].red + src[RIDX(i+1,j,dim)].red + src[RIDX(i+1,j+1,dim)].red)/4);
+		current.green = (unsigned short) ((src[RIDX(i,j,dim)].green + src[RIDX(i,j+1,dim)].green + src[RIDX(i+1,j,dim)].green + src[RIDX(i+1,j+1,dim)].green)/4);
+		current.blue = (unsigned short) ((src[RIDX(i,j,dim)].blue + src[RIDX(i,j+1,dim)].blue + src[RIDX(i+1,j,dim)].blue + src[RIDX(i+1,j+1,dim)].blue)/4);
+		dst[RIDX(i,j,dim)] = current;
+		i = 0;
+		j = dim-1;
+		current.red = (unsigned short) ((src[RIDX(i,j,dim)].red + src[RIDX(i,j-1,dim)].red + src[RIDX(i+1,j,dim)].red + src[RIDX(i+1,j-1,dim)].red)/4);
+		current.green = (unsigned short) ((src[RIDX(i,j,dim)].green + src[RIDX(i,j-1,dim)].green + src[RIDX(i+1,j,dim)].green + src[RIDX(i+1,j-1,dim)].green)/4);
+		current.blue = (unsigned short) ((src[RIDX(i,j,dim)].blue + src[RIDX(i,j-1,dim)].blue + src[RIDX(i+1,j,dim)].blue + src[RIDX(i+1,j-1,dim)].blue)/4);
+		dst[RIDX(i,j,dim)] = current;
+		i = dim-1;
+		j = 0;
+		current.red = (unsigned short) ((src[RIDX(i,j,dim)].red + src[RIDX(i,j+1,dim)].red + src[RIDX(i-1,j,dim)].red + src[RIDX(i-1,j+1,dim)].red)/4);
+		current.green = (unsigned short) ((src[RIDX(i,j,dim)].green + src[RIDX(i,j+1,dim)].green + src[RIDX(i-1,j,dim)].green + src[RIDX(i-1,j+1,dim)].green)/4);
+		current.blue = (unsigned short) ((src[RIDX(i,j,dim)].blue + src[RIDX(i,j+1,dim)].blue + src[RIDX(i-1,j,dim)].blue + src[RIDX(i-1,j+1,dim)].blue)/4);
+		dst[RIDX(i,j,dim)] = current;
+		i = dim-1;
+		j = dim-1;
+		current.red = (unsigned short) ((src[RIDX(i,j,dim)].red + src[RIDX(i,j-1,dim)].red + src[RIDX(i-1,j,dim)].red + src[RIDX(i-1,j-1,dim)].red)/4);
+		current.green = (unsigned short) ((src[RIDX(i,j,dim)].green + src[RIDX(i,j-1,dim)].green + src[RIDX(i-1,j,dim)].green + src[RIDX(i-1,j-1,dim)].green)/4);
+		current.blue = (unsigned short) ((src[RIDX(i,j,dim)].blue + src[RIDX(i,j-1,dim)].blue + src[RIDX(i-1,j,dim)].blue + src[RIDX(i-1,j-1,dim)].blue)/4);
+		dst[RIDX(i,j,dim)] = current;
+		i = 0;
+		for(j = 1; j< dim-1; j++){
+			current.red = (unsigned short) ((src[RIDX(i,j,dim)].red + src[RIDX(i,j+1,dim)].red + src[RIDX(i,j-1,dim)].red + src[RIDX(i+1,j,dim)].red + src[RIDX(i+1,j-1,dim)].red + src[RIDX(i+1,j+1,dim)].red)/6);
+			current.green = (unsigned short) ((src[RIDX(i,j,dim)].green + src[RIDX(i,j+1,dim)].green + src[RIDX(i,j-1,dim)].green + src[RIDX(i+1,j,dim)].green + src[RIDX(i+1,j-1,dim)].green + src[RIDX(i+1,j+1,dim)].green)/6);
+			current.blue = (unsigned short) ((src[RIDX(i,j,dim)].blue + src[RIDX(i,j+1,dim)].blue + src[RIDX(i,j-1,dim)].blue + src[RIDX(i+1,j,dim)].blue + src[RIDX(i+1,j-1,dim)].blue + src[RIDX(i+1,j+1,dim)].blue)/6);
+			dst[RIDX(i,j,dim)] = current;
+		}
+		i = dim - 1;
+		for(j = 1; j< dim-1; j++){
+			current.red = (unsigned short) ((src[RIDX(i,j,dim)].red + src[RIDX(i,j+1,dim)].red + src[RIDX(i,j-1,dim)].red + src[RIDX(i-1,j,dim)].red + src[RIDX(i-1,j-1,dim)].red + src[RIDX(i-1,j+1,dim)].red)/6);
+			current.green = (unsigned short) ((src[RIDX(i,j,dim)].green + src[RIDX(i,j+1,dim)].green + src[RIDX(i,j-1,dim)].green + src[RIDX(i-1,j,dim)].green + src[RIDX(i-1,j-1,dim)].green + src[RIDX(i-1,j+1,dim)].green)/6);
+			current.blue = (unsigned short) ((src[RIDX(i,j,dim)].blue + src[RIDX(i,j+1,dim)].blue + src[RIDX(i,j-1,dim)].blue + src[RIDX(i-1,j,dim)].blue + src[RIDX(i-1,j-1,dim)].blue + src[RIDX(i-1,j+1,dim)].blue)/6);
+			dst[RIDX(i,j,dim)] = current;
+		}	
+		j = 0;
+		for(i = 1; i< dim-1; i++){
+			current.red = (unsigned short) ((src[RIDX(i,j,dim)].red + src[RIDX(i-1,j,dim)].red + src[RIDX(i+1,j,dim)].red + src[RIDX(i,j+1,dim)].red + src[RIDX(i-1,j+1,dim)].red + src[RIDX(i+1,j+1,dim)].red)/6);
+			current.green = (unsigned short) ((src[RIDX(i,j,dim)].green + src[RIDX(i-1,j,dim)].green + src[RIDX(i+1,j,dim)].green + src[RIDX(i,j+1,dim)].green + src[RIDX(i-1,j+1,dim)].green + src[RIDX(i+1,j+1,dim)].green)/6);
+			current.blue = (unsigned short) ((src[RIDX(i,j,dim)].blue + src[RIDX(i-1,j,dim)].blue + src[RIDX(i+1,j,dim)].blue + src[RIDX(i,j+1,dim)].blue + src[RIDX(i-1,j+1,dim)].blue + src[RIDX(i+1,j+1,dim)].blue)/6);
+			dst[RIDX(i,j,dim)] = current;
+		}	
+		j = dim - 1;
+		for(i = 1; i< dim-1; i++){
+			current.red = (unsigned short) ((src[RIDX(i,j,dim)].red + src[RIDX(i-1,j,dim)].red + src[RIDX(i+1,j,dim)].red + src[RIDX(i,j-1,dim)].red + src[RIDX(i-1,j-1,dim)].red + src[RIDX(i+1,j-1,dim)].red)/6);
+			current.green = (unsigned short) ((src[RIDX(i,j,dim)].green + src[RIDX(i-1,j,dim)].green + src[RIDX(i+1,j,dim)].green + src[RIDX(i,j-1,dim)].green + src[RIDX(i-1,j-1,dim)].green + src[RIDX(i+1,j-1,dim)].green)/6);
+			current.blue = (unsigned short) ((src[RIDX(i,j,dim)].blue + src[RIDX(i-1,j,dim)].blue + src[RIDX(i+1,j,dim)].blue + src[RIDX(i,j-1,dim)].blue + src[RIDX(i-1,j-1,dim)].blue + src[RIDX(i+1,j-1,dim)].blue)/6);
+			dst[RIDX(i,j,dim)] = current;
+		}
+		for(i = 1; i< dim -1; i++){
+			for(j = 1; j< dim -1; j++){
+				current.red = (unsigned short) ((src[RIDX(i,j,dim)].red + src[RIDX(i-1,j,dim)].red + src[RIDX(i+1,j,dim)].red + src[RIDX(i,j-1,dim)].red + src[RIDX(i-1,j-1,dim)].red + src[RIDX(i+1,j-1,dim)].red + src[RIDX(i,j+1,dim)].red + src[RIDX(i-1,j+1,dim)].red + src[RIDX(i+1,j+1,dim)].red)/9);
+				current.green = (unsigned short) ((src[RIDX(i,j,dim)].green + src[RIDX(i-1,j,dim)].green + src[RIDX(i+1,j,dim)].green + src[RIDX(i,j-1,dim)].green + src[RIDX(i-1,j-1,dim)].green + src[RIDX(i+1,j-1,dim)].green + src[RIDX(i,j+1,dim)].green + src[RIDX(i-1,j+1,dim)].green + src[RIDX(i+1,j+1,dim)].green)/9);
+				current.blue = (unsigned short) ((src[RIDX(i,j,dim)].blue + src[RIDX(i-1,j,dim)].blue + src[RIDX(i+1,j,dim)].blue + src[RIDX(i,j-1,dim)].blue + src[RIDX(i-1,j-1,dim)].blue + src[RIDX(i+1,j-1,dim)].blue + src[RIDX(i,j+1,dim)].blue + src[RIDX(i-1,j+1,dim)].blue + src[RIDX(i+1,j+1,dim)].blue)/9);
+			dst[RIDX(i,j,dim)] = current;
+			}
+		}
 }
 
 

@@ -68,17 +68,19 @@ TEST_CSIM_RESULTS=27
 
 - 官方文档建议采用getopt.h解析命令行参数，初步实现时没有注意到这一点，采用了原始的字符串比较，后面有时间可以adopt这个建议。
 
+&nbsp;
+
 
 ## Part B: Optimizing Matrix Transpose
 
-### 分析
+### 说明
 - 这个部分主要是根据缓存命中的特性对矩阵转置函数做优化， B=transpose of A。
 
 - 主要用到的优化手段在chapter5,chapter6当中有提及，包括code motion, loop unrolling, blocking等。
 
-- cache lab是performace lab的替代，早先MCU是用performance lab作为assignment，特别是优化这个部分可以参考7Performance lab。
+- cache lab是performace lab的替代，早先CMU是用performance lab作为assignment，特别是优化这个部分可以参考7Performance lab。
 
-### 实现
+### 分析及实现
 - 首先，这个优化是针对一个特定的高速缓存大小(s = 5, E = 1, b = 5)。
 
 - E=1说明这是一个直接映射的高速缓存。

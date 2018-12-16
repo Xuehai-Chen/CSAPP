@@ -7,7 +7,7 @@
 
 typedef struct {
     bool valid;
-    long key;
+    unsigned long key;
     unsigned long LRU_count;
     char b[0];
 } cache_entry;
@@ -18,7 +18,6 @@ int s = 0;
 int E = 0;
 int B = 0;
 int b = 0;
-int t = 0;
 FILE *trace_file;
 int hits;
 int misses;
@@ -32,8 +31,8 @@ int tolower(int c) {
   }
 }
 
-long string_to_long(char s[], int i) {
-  long result = 0;
+unsigned long string_to_long(char s[], int i) {
+  unsigned long result = 0;
   if (s[i] == '0' && (s[i + 1] == 'x' || s[i + 1] == 'X')) {
     i += 2;
   }
@@ -47,20 +46,18 @@ long string_to_long(char s[], int i) {
   return result;
 }
 
-int check_hit(cache_entry *cache_set_start, long address) {
+int check_hit(cache_entry *cache_set_start, unsigned long address) {
   int result = -1;
   for (int i = 0; i < E; i++) {
-    long mark = address >> (s + b);
-    cache_entry *cache = cache_set_start + i;
-    if (cache->valid == true) {
-      if (mark == cache->key) {
-        cache->LRU_count = (cache->LRU_count >> 1) + (1L << 63);
-        if (v_mode) {
-          printf("hit ");
-        }
+    unsigned long mark = address >> (s + b);
+    cache_entry *current = cache_set_start + i;
+    if (current->valid == true) {
+      if (current->key == mark) {
+        current->LRU_count = (current->LRU_count >> 1) + (1L << 63);
+        if (v_mode)printf("hit ");
         result = i;
       } else {
-        cache->LRU_count = cache->LRU_count >> 1;
+        current->LRU_count = current->LRU_count >> 1;
       }
     }
   }
@@ -78,9 +75,9 @@ int get_free_index(cache_entry *cache_set_start) {
 
 int eviction(cache_entry *cache_set_start) {
   int index = 0;
-  int least_count = (1 << 31) >> 31;
+  unsigned long least_count = 0xFFFFFFFFFFFFFFFF;
   for (int i = 0; i < E; i++) {
-    cache_entry *cache = cache_set_start + index;
+    cache_entry *cache = cache_set_start + i;
     if (cache->LRU_count < least_count) {
       least_count = cache->LRU_count;
       index = i;
@@ -90,8 +87,28 @@ int eviction(cache_entry *cache_set_start) {
   return index;
 }
 
+void access(cache_entry *cache_set_start, unsigned long address) {
+  if (check_hit(cache_set_start, address) != -1) {
+    hits++;
+  } else {
+    misses++;
+    if (v_mode) printf("miss ");
+    int index = get_free_index(cache_set_start);
+    cache_entry *cache;
+    if (index == -1) {
+      evictions++;
+      if (v_mode) printf("eviction ");
+      cache = cache_set_start + eviction(cache_set_start);
+    } else {
+      cache = cache_set_start + index;
+    }
+    cache->valid = true;
+    cache->key = address >> (s + b);
+    cache->LRU_count = (1L << 63);
+  }
+}
+
 void parse_trace_file(cache_entry *cache[]) {
-  //printf("starting to parse trace file %p\n",trace_file);
   char line[100];
   while (!feof(trace_file)) {
     if (fgets(line, 100, trace_file) == NULL) break;
@@ -102,90 +119,20 @@ void parse_trace_file(cache_entry *cache[]) {
         break;
       }
     }
-    if (v_mode) {
-      printf("\n%s", line + 1);
-    }
-    long address = string_to_long(line, 3);
-    //printf("the address is %ld, the size is %d\n",address,size);
+    if (v_mode) printf("\n%s", line + 1);
+    unsigned long address = string_to_long(line, 3);
     cache_entry *cache_set_start = cache[((address >> b) % S) * E];
     if (line[1] == 'L') {
-      if (check_hit(cache_set_start, address) != -1) {
-        hits++;
-      } else {
-        misses++;
-        if (v_mode) {
-          printf("miss ");
-        }
-        int index = get_free_index(cache_set_start);
-        cache_entry *cache;
-        if (index == -1) {
-          evictions++;
-          if (v_mode) {
-            printf("eviction ");
-          }
-          cache = cache_set_start + eviction(cache_set_start);
-        } else {
-          cache = cache_set_start + index;
-        }
-        cache->valid = true;
-        cache->key = address >> (s + b);
-        cache->LRU_count = 0;
-      }
+      access(cache_set_start, address);
     } else if (line[1] == 'M') {
-      if (check_hit(cache_set_start, address) != -1) {
-        hits++;
-      } else {
-        misses++;
-        if (v_mode) {
-          printf("miss ");
-        }
-        int index = get_free_index(cache_set_start);
-        cache_entry *cache;
-        if (index == -1) {
-          evictions++;
-          if (v_mode) {
-            printf("eviction ");
-          }
-          cache = cache_set_start + eviction(cache_set_start);
-        } else {
-          cache = cache_set_start + index;
-        }
-        cache->valid = true;
-        cache->key = address >> (s + b);
-        cache->LRU_count = 0;
-      }
+      access(cache_set_start, address);
       hits++;
-      if (v_mode) {
-        printf("hit ");
-      }
+      if (v_mode) printf("hit ");
     } else if (line[1] == 'S') {
-      if (check_hit(cache_set_start, address) != -1) {
-        hits++;
-      } else {
-        misses++;
-        if (v_mode) {
-          printf("miss ");
-        }
-        int index = get_free_index(cache_set_start);
-        cache_entry *cache;
-        if (index == -1) {
-          evictions++;
-          if (v_mode) {
-            printf("eviction ");
-          }
-          cache = cache_set_start + eviction(cache_set_start);
-        } else {
-          cache = cache_set_start + index;
-        }
-        cache->valid = true;
-        cache->key = address >> (s + b);
-        cache->LRU_count = 0;
-      }
+      access(cache_set_start, address);
     }
   }
-  if (v_mode) {
-    printf("\n");
-  }
+  if (v_mode) printf("\n");
 }
 
 int main(int argc, char *argv[]) {
@@ -219,15 +166,12 @@ int main(int argc, char *argv[]) {
     return 0;
   }
   printf("S is %d, E is %d, b is %d, file is %s\n", S, E, b, file_name);
-  t = 64 - s - b;
   cache_entry *cache[S * E];
   for (int i = 0; i < S * E; i++) {
     cache[i] = malloc(sizeof(cache_entry) + B);
-    //printf("the address is %p\n",cache[i*S + j]);
     memset(cache[i], 0, sizeof(*cache[i]));
   }
   trace_file = fopen(file_name, "r");
-  //printf("the size of cache_entry is %ld\n",sizeof(cache_entry));
   parse_trace_file(cache);
   for (int i = 0; i < S * E; i++) {
     if (cache[i] != NULL) {

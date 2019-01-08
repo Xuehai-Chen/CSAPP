@@ -14,6 +14,7 @@
 #include <assert.h>
 #include <unistd.h>
 #include <string.h>
+#include <math.h>
 
 #include "mm.h"
 #include "memlib.h"
@@ -64,7 +65,12 @@ team_t team = {
 #define NEXT_BLKP(bp) ((char *)(bp) + GET_SIZE(((char *)(bp) - WSIZE)))
 #define PREV_BLKP(bp) ((char *)(bp) - GET_SIZE(((char *)(bp) - DSIZE)))
 
+#define GET_SUCC_BLKP(bp) ((void *)*(unsigned int *)(bp))
+#define SET_SUCC_BLKP(bp, succ) (*(unsigned int *)(bp) = (unsigned int)(succ))
+#define HAS_SUCC_BLKP(bp) (GET(bp) >> 1 & 0x1)
+
 void *heap_listp;
+void *free_list[14];
 
 static void *extend_heap(size_t words);
 
@@ -73,6 +79,32 @@ static void *coalesce(void *bp);
 static void *find_fit(size_t asize);
 
 static void place(void *bp, size_t asize);
+
+static void free_list_insert(void *bp);
+
+static void free_list_remove(void *bp);
+
+static void print_free_list();
+
+int ilog2(int x) {
+  int tmp = x >> 16;
+  int flg1 = (~!tmp << 31) >> 31;
+  x = (flg1 & tmp) | (~flg1 & x);
+  tmp = x >> 8;
+  int flg2 = (~!tmp << 31) >> 31;
+  x = (flg2 & tmp) | (~flg2 & x);
+  tmp = x >> 4;
+  int flg3 = (~!tmp << 31) >> 31;
+  x = (flg3 & tmp) | (~flg3 & x);
+  tmp = x >> 2;
+  int flg4 = (~!tmp << 31) >> 31;
+  x = (flg4 & tmp) | (~flg4 & x);
+  tmp = x >> 1;
+  int flg5 = (~!tmp << 31) >> 31;
+  x = (flg5 & tmp) | (~flg5 & x);
+  int result = ((0x1 & flg5) + (0x2 & flg4) + (0x4 & flg3) + (0x8 & flg2) + (0x10 & flg1));
+  return result + 1;
+}
 
 /* 
  * mm_init - initialize the malloc package.
@@ -96,6 +128,7 @@ int mm_init(void) {
  *     Always allocate a block whose size is a multiple of the alignment.
  */
 void *mm_malloc(size_t size) {
+  //print_free_list();
   size_t asize;
   size_t extendsize;
   void *bp;
@@ -109,6 +142,7 @@ void *mm_malloc(size_t size) {
     asize = DSIZE * ((size + (DSIZE) + (DSIZE - 1)) / DSIZE);
 
   if ((bp = find_fit(asize)) != NULL) {
+    free_list_remove(bp);
     place(bp, asize);
     return bp;
   }
@@ -128,7 +162,8 @@ void mm_free(void *ptr) {
 
   PUT(HDRP(ptr), PACK(size, 0));
   PUT(FTRP(ptr), PACK(size, 0));
-  coalesce(ptr);
+  void *bp = coalesce(ptr);
+  free_list_insert(bp);
 }
 
 /*
@@ -160,7 +195,6 @@ static void *extend_heap(size_t words) {
   PUT(HDRP(bp), PACK(size, 0));
   PUT(FTRP(bp), PACK(size, 0));
   PUT(HDRP(NEXT_BLKP(bp)), PACK(0, 1));
-
   return coalesce(bp);
 }
 
@@ -168,6 +202,13 @@ static void *coalesce(void *bp) {
   size_t prev_alloc = GET_ALLOC(FTRP(PREV_BLKP(bp)));
   size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));
   size_t size = GET_SIZE(HDRP(bp));
+
+  if (!prev_alloc) {
+    free_list_remove(PREV_BLKP(bp));
+  }
+  if (!next_alloc) {
+    free_list_remove(NEXT_BLKP(bp));
+  }
 
   if (prev_alloc && next_alloc) {
     return bp;
@@ -186,15 +227,21 @@ static void *coalesce(void *bp) {
     PUT(FTRP(NEXT_BLKP(bp)), PACK(size, 0));
     bp = PREV_BLKP(bp);
   }
-
   return bp;
 }
 
 static void *find_fit(size_t asize) {
-  void *current_head = heap_listp;
-  while (GET_SIZE(HDRP(current_head)) != 0) {
-    if (GET_SIZE(HDRP(current_head)) >= asize && !GET_ALLOC(HDRP(current_head))) return current_head;
-    current_head = NEXT_BLKP(current_head);
+  int index = ilog2(asize);
+  if (index > 13) index = 13;
+  while (index <= 13) {
+    void *current = free_list[index];
+    int count = 5;
+    while (current != NULL && GET_SIZE(HDRP(current)) != 0 && !GET_ALLOC(HDRP(current)) && count > 0) {
+      if (GET_SIZE(HDRP(current)) >= asize) return current;
+      current = HAS_SUCC_BLKP(HDRP(current)) ? GET_SUCC_BLKP(current) : NULL;
+      count--;
+    }
+    index++;
   }
   return NULL;
 }
@@ -206,9 +253,56 @@ static void place(void *bp, size_t asize) {
     PUT(FTRP(bp), PACK(asize, 1));
     PUT(HDRP(NEXT_BLKP(bp)), PACK(size - asize, 0));
     PUT(FTRP(NEXT_BLKP(bp)), PACK(size - asize, 0));
+    free_list_insert(NEXT_BLKP(bp));
   } else {
     PUT(HDRP(bp), PACK(size, 1));
     PUT(FTRP(bp), PACK(size, 1));
   }
 }
 
+static void free_list_insert(void *bp) {
+  size_t size = GET(HDRP(bp));
+  int index = ilog2(size);
+  if (index > 13) index = 13;
+  void *head = free_list[index];
+  free_list[index] = bp;
+  SET_SUCC_BLKP(bp, head);
+  if (head != NULL) PUT(HDRP(bp), GET(HDRP(bp)) | (0x2));
+}
+
+static void free_list_remove(void *bp) {
+  size_t size = GET(HDRP(bp));
+  int index = ilog2(size);
+  if (index > 13) index = 13;
+  void *current = free_list[index];
+  void *prev = current;
+  while (current != NULL && GET_SIZE(HDRP(current)) != 0 && !GET_ALLOC(HDRP(current))) {
+    void *succ = HAS_SUCC_BLKP(HDRP(current)) ? GET_SUCC_BLKP(current) : NULL;
+    if (current == bp) {
+      if (prev == current) {
+        free_list[index] = succ;
+      } else {
+        if (succ == NULL) PUT(HDRP(prev), GET(HDRP(prev)) & (~0x2));
+        else {
+          SET_SUCC_BLKP(prev, succ);
+          PUT(HDRP(prev), GET(HDRP(prev)) | 0x2);
+        }
+      }
+      break;
+    }
+    prev = current;
+    current = succ;
+  }
+}
+
+static void print_free_list() {
+  for (int i = 0; i < 14; i++) {
+    void *curr = free_list[i];
+    fprintf(stderr, "free_list pow(2,%d) size classes:", i);
+    while (curr != NULL) {
+      fprintf(stderr, "%x,%d,%x,%d; ", &GET(curr), GET(HDRP(curr)), GET(curr), HAS_SUCC_BLKP(HDRP(curr)));
+      curr = HAS_SUCC_BLKP(HDRP(curr)) ? GET_SUCC_BLKP(curr) : NULL;
+    }
+    fprintf(stderr, "\n");
+  }
+}

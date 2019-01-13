@@ -42,10 +42,7 @@ int main(int argc, char **argv) {
     Pthread_create(&tid, NULL, thread, NULL);
   while (1) {
     clientlen = sizeof(clientaddr);
-    connfd = Accept(listenfd, (SA * ) & clientaddr, &clientlen);
-    //Getnameinfo((SA * ) & clientaddr, clientlen, hostname, MAXLINE, port, MAXLINE, 0);
-    //printf("Accepted connection from (%s, %s)\n", hostname, port);
-    //Close(connfd)
+    connfd = Accept(listenfd, (SA *) &clientaddr, &clientlen);
     sbuf_insert(&sbuf, connfd);
   }
   return 0;
@@ -64,7 +61,7 @@ void process(int fd) {
 
   char buf[MAXLINE], method[MAXLINE], uri[MAXLINE], version[MAXLINE], hdrs[MAXLINE];
   rio_t rio, rio_out;
-  char host[MAXLINE], port[MAXLINE], path[MAXLINE], proxy_connection[MAXBUF], connection[MAXBUF], user_agent[MAXBUF];
+  char host[MAXBUF], port[MAXBUF], path[MAXBUF], proxy_connection[MAXBUF], connection[MAXBUF], user_agent[MAXBUF];
   int clientfd;
   char request[MAXLINE];
   char response[MAXLINE];

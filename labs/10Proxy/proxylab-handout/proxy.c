@@ -1,16 +1,23 @@
 #include <stdio.h>
 #include "csapp.h"
+#include "sbuf.h"
 
 /* Recommended max cache and object sizes */
 #define MAX_CACHE_SIZE 1049000
 #define MAX_OBJECT_SIZE 102400
+#define MAX_THREAD_NUM 10
+#define SBUFSIZE 100
 
 /* You won't lose style points for including this long line in your code */
 static const char *user_agent_hdr = "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:10.0.3) Gecko/20120305 Firefox/10.0.3\r\n";
 
-void doit(int fd);
+sbuf_t sbuf;
 
-void read_hdrs(rio_t *rp, char *buf, char *host, char *proxy_connection, char *connection, char *user_agent_hdr);
+void *thread(void *vargp);
+
+void process(int fd);
+
+void read_hdrs(rio_t *rp, char *buf, char *host, char *proxy_connection, char *connection, char *user_agent);
 
 void parse_uri(char *uri, char *host, char *port, char *path);
 
@@ -21,6 +28,7 @@ int main(int argc, char **argv) {
   char hostname[MAXLINE], port[MAXLINE];
   socklen_t clientlen;
   struct sockaddr_storage clientaddr;
+  pthread_t tid;
 
   if (argc != 2) {
     fprintf(stderr, "usage: %s <port>\n", argv[0]);
@@ -28,19 +36,32 @@ int main(int argc, char **argv) {
   }
 
   listenfd = Open_listenfd(argv[1]);
+  sbuf_init(&sbuf, SBUFSIZE);
+
+  for (int i = 0; i < MAX_THREAD_NUM; i++)
+    Pthread_create(&tid, NULL, thread, NULL);
   while (1) {
     clientlen = sizeof(clientaddr);
     connfd = Accept(listenfd, (SA * ) & clientaddr, &clientlen);
-    Getnameinfo((SA * ) & clientaddr, clientlen, hostname, MAXLINE, port, MAXLINE, 0);
-    printf("Accepted connection from (%s, %s)\n", hostname, port);
-    doit(connfd);
-    Close(connfd);
+    //Getnameinfo((SA * ) & clientaddr, clientlen, hostname, MAXLINE, port, MAXLINE, 0);
+    //printf("Accepted connection from (%s, %s)\n", hostname, port);
+    //Close(connfd)
+    sbuf_insert(&sbuf, connfd);
   }
-  printf("%s", user_agent_hdr);
   return 0;
 }
 
-void doit(int fd) {
+void *thread(void *vargp) {
+  Pthread_detach(pthread_self());
+  while (1) {
+    int fd = sbuf_remove(&sbuf);
+    process(fd);
+    Close(fd);
+  }
+}
+
+void process(int fd) {
+
   char buf[MAXLINE], method[MAXLINE], uri[MAXLINE], version[MAXLINE], hdrs[MAXLINE];
   rio_t rio, rio_out;
   char host[MAXLINE], port[MAXLINE], path[MAXLINE], proxy_connection[MAXBUF], connection[MAXBUF], user_agent[MAXBUF];

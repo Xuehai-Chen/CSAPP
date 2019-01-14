@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include "csapp.h"
 #include "sbuf.h"
+#include "cache.h"
 
 /* Recommended max cache and object sizes */
 #define MAX_CACHE_SIZE 1049000
@@ -12,6 +13,8 @@
 static const char *user_agent_hdr = "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:10.0.3) Gecko/20120305 Firefox/10.0.3\r\n";
 
 sbuf_t sbuf;
+
+cache_entry *cache[10];
 
 void *thread(void *vargp);
 
@@ -25,7 +28,6 @@ void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longms
 
 int main(int argc, char **argv) {
   int listenfd, connfd;
-  char hostname[MAXLINE], port[MAXLINE];
   socklen_t clientlen;
   struct sockaddr_storage clientaddr;
   pthread_t tid;
@@ -37,6 +39,7 @@ int main(int argc, char **argv) {
 
   listenfd = Open_listenfd(argv[1]);
   sbuf_init(&sbuf, SBUFSIZE);
+  init_cache(cache);
 
   for (int i = 0; i < MAX_THREAD_NUM; i++)
     Pthread_create(&tid, NULL, thread, NULL);
@@ -65,6 +68,7 @@ void process(int fd) {
   int clientfd;
   char request[MAXLINE];
   char response[MAXLINE];
+  char buf_response[MAX_OBJECT_SIZE];
 
   Rio_readinitb(&rio, fd);
   if (!Rio_readlineb(&rio, buf, MAXLINE)) return;
@@ -72,6 +76,13 @@ void process(int fd) {
   sscanf(buf, "%s %s %s", method, uri, version);
   if (strcasecmp(method, "GET")) {
     clienterror(fd, method, "501", "Not Implemented", "Proxy does not implement this method");
+    return;
+  }
+
+  cache_entry *cached_response = get_by_uri(cache, uri);
+  if (cached_response != NULL) {
+    fprintf(stderr, "cache_hit:%p\n", cached_response);
+    Rio_writen(fd, cached_response->data, MAX_OBJECT_SIZE);
     return;
   }
 
@@ -97,11 +108,18 @@ void process(int fd) {
   sprintf(request, "%s\r\n", request);
   fprintf(stderr, "request: %s", request);
   Rio_writen(clientfd, request, strlen(request));
+  int total = 0;
   int count = MAXBUF;
   while (count == MAXBUF) {
     count = Rio_readnb(&rio_out, response, MAXBUF);
-    //Fputs(request, stdout);
     Rio_writen(fd, response, count);
+    total += count;
+    if (total < MAX_OBJECT_SIZE) {
+      sprintf(buf_response, "%s%s", buf_response, response);
+    }
+  }
+  if (total < MAX_OBJECT_SIZE) {
+    set_by_uri(cache, uri, buf_response);
   }
   Close(clientfd);
 }

@@ -26,6 +26,8 @@ void parse_uri(char *uri, char *host, char *port, char *path);
 
 void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg);
 
+void sigpipe_handler(int sig);
+
 int main(int argc, char **argv) {
   int listenfd, connfd;
   socklen_t clientlen;
@@ -36,6 +38,8 @@ int main(int argc, char **argv) {
     fprintf(stderr, "usage: %s <port>\n", argv[0]);
     exit(1);
   }
+
+  Signal(SIGPIPE, sigpipe_handler);
 
   listenfd = Open_listenfd(argv[1]);
   sbuf_init(&sbuf, SBUFSIZE);
@@ -192,4 +196,9 @@ void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longms
   sprintf(buf, "Content-length: %d\r\n\r\n", (int) strlen(body));
   Rio_writen(fd, buf, strlen(buf));
   Rio_writen(fd, body, strlen(body));
+}
+
+void sigpipe_handler(int sig) {
+  printf("The connection has broken.");
+  return;
 }

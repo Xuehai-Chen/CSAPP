@@ -172,3 +172,78 @@ void *thread(void *vargp) {
 
 ## Part III: Caching web objects
 
+### 说明
+
+- 关于缓存的实现，事实上可以参考lab6 cache，在那个lab中实现了完整的LRU的缓存模拟器，这里不再赘述。
+
+- 综合lab指南里给定的缓存大小和每个object的最大缓存大小考虑，一个简单的实现是给每个缓存项固定的大小，因此缓存项只有10个，剩余的空间正好用来存放key和LRU_count等字段。不过，虽然这种实现可以直接利用lab6中的相关实现，但是缓存的空间利用率太低，可以考虑后续优化。
+
+- 关于proxy的鲁棒性和稳定性，lab指南以及textbook中都有提及，首先是各个io封装函数的修改，其次是SIGPIPE信号的捕捉，这些都是必不可少的。
+
+### 实现
+```c
+void init_cache(cache_entry *cache[]) {
+  for (int i = 0; i < 10; i++) {
+    cache[i] = Malloc(sizeof(cache_entry));
+    memset(cache[i], 0, sizeof(cache_entry));
+  }
+}
+```
+
+```c
+cache_entry *get_by_uri(cache_entry *cache[], char *uri) {
+  cache_entry *result = NULL;
+  for (int i = 0; i < 10; i++) {
+    cache_entry *current = cache[i];
+    if (strcmp(current->key, uri) == 0) {
+      current->LRU_count = (current->LRU_count >> 1) + (1L << 63);
+      result = current;
+    } else {
+      current->LRU_count = current->LRU_count >> 1;
+    }
+  }
+  return result;
+}
+```
+
+```c
+int get_free(cache_entry *cache[]) {
+  int result = -1;
+  for (int i = 0; i < 10; i++) {
+    cache_entry *current = cache[i];
+    if (current->valid == false) {
+      return i;
+    }
+  }
+  return result;
+}
+```
+
+```c
+void set_by_uri(cache_entry *cache[], char *uri, char *data) {
+  int index = get_free(cache);
+  if (index < 0) {
+    index = eviction(cache);
+  }
+  cache_entry *current = cache[index];
+  strncpy(current->key, uri, strlen(uri));
+  current->valid = true;
+  current->LRU_count = (1L << 63);
+  memcpy((void *) current->data, (void *) data, 102400);
+}
+```
+
+```c
+int eviction(cache_entry *cache[]) {
+  int index = 0;
+  unsigned long least_count = 0xFFFFFFFFFFFFFFFF;
+  for (int i = 0; i < 10; i++) {
+    cache_entry *current = cache[i];
+    if (current->LRU_count < least_count) {
+      index = i;
+      least_count = current->LRU_count;
+    }
+  }
+  return index;
+}
+```
